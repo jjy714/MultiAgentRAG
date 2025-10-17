@@ -11,7 +11,7 @@ from langchain_huggingface import HuggingFaceEmbeddings
 
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
-COLLECTION_NAME = os.getenv("COLLECTION_NAME")
+QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
 QDRANT_URL=os.getenv("QDRANT_URL")
 
 client = QdrantClient(":memory:")
