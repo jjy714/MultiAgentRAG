@@ -9,3 +9,5 @@ class Agent(ABC):
     @abstractmethod
     def communicate(self):
         pass
+    
+    

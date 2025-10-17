@@ -31,6 +31,7 @@ model = ChatOpenAI()
 def agent_2(state: Annotated[dict, InjectedState]):
     response = model.invoke(...)
     return response.content
+
 # the simplest way to build a supervisor w/ tool-calling is to use prebuilt ReAct agent graph
 # that consists of a tool-calling LLM node (i.e. supervisor) and a tool-executing node
 supervisor = create_react_agent(model, tools)

@@ -1,10 +1,16 @@
-from langchain_core.tools import Tool
+from langchain_core.tools import tool
+from langgraph.types import Command
 from langchain_google_community import GoogleSearchAPIWrapper
+from dotenv import load_dotenv
+import os
 
-search = GoogleSearchAPIWrapper()
+load_dotenv()
 
-tool = Tool(
-    name="google_search",
-    description="Search Google for recent results.",
-    func=search.run,
-)
+GOOGLE_CUSTOM_SEARCH_API = os.getenv("GOOGLE_CUSTOM_SEARCH_API")
+
+@tool
+def web_search_tool():
+    return GoogleSearchAPIWrapper(
+        google_api_key=GOOGLE_CUSTOM_SEARCH_API,
+        k=3
+    )
