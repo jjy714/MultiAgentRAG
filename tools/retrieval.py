@@ -56,7 +56,13 @@ def initiate_qdrant_client(mode: str):
     
     return qdrant
 
+from langchain.tools.retriever import create_retriever_tool
 
+retriever_tool = create_retriever_tool(
+    retriever,
+    "retrieve_blog_posts",
+    "Search and return information about Lilian Weng blog posts.",
+)
 @tool
 def dense_search(query):
     qdrant = initiate_qdrant_client("dense")

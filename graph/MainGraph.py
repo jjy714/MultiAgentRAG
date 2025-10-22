@@ -6,30 +6,49 @@ from graph.state import State
 
 
 
-agent_builder = StateGraph(MessagesState)
 
-planner = llm.with_structured_output(Sections)
 
+# Conditional edge function to route to the appropriate node
+def route_decision(state: State):
+    # Return the node name you want to visit next
+    if state["decision"] == "story":
+        return "llm_call_1"
+    elif state["decision"] == "joke":
+        return "llm_call_2"
+    elif state["decision"] == "poem":
+        return "llm_call_3"
 
 
 # Build workflow
-orchestrator_worker_builder = StateGraph(State)
+router_builder = StateGraph(State)
 
-# Add the nodes
-orchestrator_worker_builder.add_node("orchestrator", orchestrator)
-orchestrator_worker_builder.add_node("llm_call", llm_call)
-orchestrator_worker_builder.add_node("synthesizer", synthesizer)
+# Add nodes
+router_builder.add_node("llm_call_1", llm_call_1)
+router_builder.add_node("llm_call_2", llm_call_2)
+router_builder.add_node("llm_call_3", llm_call_3)
+router_builder.add_node("semantic_analyzer", semantic_analyzer)
 
 # Add edges to connect nodes
-orchestrator_worker_builder.add_edge(START, "orchestrator")
-orchestrator_worker_builder.add_conditional_edges(
-    "orchestrator", assign_workers, ["llm_call"]
+router_builder.add_edge(START, "llm_call_router")
+router_builder.add_conditional_edges(
+    "llm_call_router",
+    route_decision,
+    {  # Name returned by route_decision : Name of next node to visit
+        "llm_call_1": "llm_call_1",
+        "llm_call_2": "llm_call_2",
+        "llm_call_3": "llm_call_3",
+    },
 )
-orchestrator_worker_builder.add_edge("llm_call", "synthesizer")
-orchestrator_worker_builder.add_edge("synthesizer", END)
+router_builder.add_edge("llm_call_1", END)
+router_builder.add_edge("llm_call_2", END)
+router_builder.add_edge("llm_call_3", END)
 
-# Compile the workflow
-orchestrator_worker = orchestrator_worker_builder.compile()
+# Compile workflow
+router_workflow = router_builder.compile()
+
+# Show the workflow
+display(Image(router_workflow.get_graph().draw_mermaid_png()))
 
 # Invoke
-state = orchestrator_worker.invoke({"topic": "Create a report on LLM scaling laws"})
+state = router_workflow.invoke({"input": "Write me a joke about cats"})
+print(state["output"])
