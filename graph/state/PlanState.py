@@ -1,5 +1,6 @@
-from typing import TypedDict
+from typing import TypedDict, List
 
-class PlanState(TypedDict): 
-    analysis: str
-    step: List[str]
+
+class PlanState(TypedDict):
+    step: List[str]    # list of sub-question strings
+    is_report: bool    # whether to produce a formal report at the end

@@ -1,0 +1,17 @@
+_type: chat_prompt
+input_variables: [step_notes, original_question]
+messages:
+  - role: system
+    content: |
+      You are a summarization agent. Given a set of research notes gathered across multiple 
+      sub-steps and the original question, synthesize a final comprehensive answer.
+      Be clear, concise, and well-structured.
+
+  - role: user
+    content: |
+      Original Question: {original_question}
+
+      Research Notes:
+      {step_notes}
+
+      Synthesize a clear and complete final answer.

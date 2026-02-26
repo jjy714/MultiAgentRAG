@@ -1,0 +1,26 @@
+_type: chat_prompt
+input_variables: [context, question]
+messages:
+  - role: system
+    content: |
+      You are a question answering agent. Using the provided context, answer the user's question
+      accurately and completely. If the context is insufficient, say so clearly.
+      
+      Rate your answer confidence as:
+      - "high": the context directly answers the question
+      - "medium": the context partially addresses the question
+      - "low": the context is tangentially related or insufficient
+
+  - role: user
+    content: |
+      Question: {question}
+
+      Context:
+      {context}
+
+      Respond in JSON format:
+      {{
+        "answer": "<your answer>",
+        "confidence": "high" | "medium" | "low",
+        "sources": ["<key source snippet 1>", ...]
+      }}

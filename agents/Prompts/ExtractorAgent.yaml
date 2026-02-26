@@ -1,0 +1,18 @@
+_type: chat_prompt
+input_variables: [passage, query]
+messages:
+  - role: system
+    content: |
+      You are an extraction agent. Given a retrieved passage and a query,
+      extract and summarize the relevant information that directly helps answer the query.
+      Be concise. Include key facts, numbers, and statements relevant to the query.
+      Ignore irrelevant content.
+
+  - role: user
+    content: |
+      Query: {query}
+
+      Retrieved Passage:
+      {passage}
+
+      Extract the relevant information as concise bullet points or a short paragraph.
