@@ -6,6 +6,15 @@
 from schema.ChatRequest import ChatRequest
 from schema.Message import Message
 
+
+
+# ---------------------------------------------------------------------------
+# Agent name → display label mapping (for SSE events)
+# ---------------------------------------------------------------------------
+
+# Maps LangGraph node names to human-readable agent IDs used by the frontend
+
+
 NODE_TO_AGENT = {
     # Discussion panel
     "discussion_panel":             "DiscussionPanel",

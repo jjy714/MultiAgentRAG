@@ -47,22 +47,6 @@ app.add_middleware(
 )
 
 
-
-# ---------------------------------------------------------------------------
-# Agent name → display label mapping (for SSE events)
-# ---------------------------------------------------------------------------
-
-# Maps LangGraph node names to human-readable agent IDs used by the frontend
-
-
-
-# ---------------------------------------------------------------------------
-# Real graph runner
-# ---------------------------------------------------------------------------
-
-## Invoke the real MultiAgentRAG main graph and stream SSE events per node lifecycle
-
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)

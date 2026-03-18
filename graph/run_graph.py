@@ -4,6 +4,7 @@ from graph.main_graph import create_main_graph
 from schema import ChatRequest, NODE_TO_AGENT
 
 
+## Invoke the real MultiAgentRAG main graph and stream SSE events per node lifecycle
 
 async def run_graph(request: ChatRequest) -> AsyncGenerator[str, None]:
     """

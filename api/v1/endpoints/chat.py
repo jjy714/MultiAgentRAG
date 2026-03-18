@@ -5,7 +5,6 @@ from fastapi.responses import StreamingResponse
 from graph import run_graph
 router = APIRouter()
 
-
 ## Chat endpoint that streams SSE events from the graph for the given request
 @router.post("/chat")
 async def chat(request: ChatRequest):
