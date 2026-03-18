@@ -26,9 +26,13 @@ def DirectResponderAdvocate(state: DiscussionState) -> dict:
 
     structured_llm = get_llm().with_structured_output(AdvocateVote)
 
-    result: AdvocateVote = structured_llm.invoke([
-        SystemMessage(system_prompt),
-        HumanMessage(user_prompt.format(question=question))
-    ])
-    print(f"[DirectResponderAdvocate] vote={result.get('vote')} | reason={result.get('reasoning')}")
+    result: AdvocateVote = structured_llm.invoke(
+        [
+            SystemMessage(system_prompt),
+            HumanMessage(user_prompt.format(question=question)),
+        ]
+    )
+    print(
+        f"[DirectResponderAdvocate] vote={result.get('vote')} | reason={result.get('reasoning')}"
+    )
     return {"votes": [result]}

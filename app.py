@@ -19,12 +19,11 @@ Agents emitted (match frontend AgentStatusPanel):
                      ExtractorAgent, QuestionAnsweringAgent, WebSearchAgent
 """
 
-import asyncio
 import sys
 from pathlib import Path
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -49,4 +48,5 @@ app.add_middleware(
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)

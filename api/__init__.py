@@ -1,1 +1,1 @@
-from sse import sse
+from .sse import sse

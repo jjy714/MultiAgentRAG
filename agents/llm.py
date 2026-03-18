@@ -1,15 +1,17 @@
 import os
 from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
+from logger_tools import get_logger
 
-load_dotenv()
+logger = get_logger(__name__)
+load_dotenv("../.env.dev")
 
 # ── Ollama / vLLM connection settings ─────────────────────────────────────────
 # All agents share this single factory so the endpoint is configured once.
 # Override the env-vars below to switch inference backends without touching code.
 
 VLLM_BASE_URL = os.getenv("VLLM_BASE_URL", "http://localhost:11434/v1")
-VLLM_NAME     = os.getenv("VLLM_NAME",     "qwen3.5:2b")
+VLLM_NAME = os.getenv("VLLM_NAME", "qwen3.5:2b")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "ollama")
 
 
@@ -24,6 +26,7 @@ def get_llm(temperature: float = 0, **kwargs) -> ChatOpenAI:
         "ChatOpenAI": "LangChain ChatOpenAI client pointing at VLLM_BASE_URL"
     }
     """
+    logger.debug("get_llm used")
     return ChatOpenAI(
         model=VLLM_NAME,
         base_url=VLLM_BASE_URL,

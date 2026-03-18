@@ -3,6 +3,10 @@ from api import sse
 from graph.main_graph import create_main_graph
 from schema import ChatRequest, NODE_TO_AGENT
 
+from logger_tools import get_logger
+
+logger = get_logger(__name__)
+
 
 ## Invoke the real MultiAgentRAG main graph and stream SSE events per node lifecycle
 
@@ -15,7 +19,7 @@ async def run_graph(request: ChatRequest) -> AsyncGenerator[str, None]:
         "AsyncGenerator[str, None]": "async generator yielding SSE-formatted strings"
     }
     """
-    
+    logger.debug("run_graph initialized")
     graph = create_main_graph()
 
     initial_state = {
