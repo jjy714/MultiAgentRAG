@@ -3,27 +3,36 @@ import re
 from urllib.parse import urlencode
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.prebuilt import create_react_agent
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import AIMessage
 from dotenv import load_dotenv
+from agents.llm import get_llm
 
 load_dotenv()
 
+# Environment variable configuration for the Exa MCP web search service
 SMITHERY_EXA_URL = os.getenv("SMITHERY_EXA_URL")
 SMITHERY_EXA_PARAMS = {
     "api_key": os.getenv("EXA_MCP_API_KEY"),
     "profile": os.getenv("EXA_MCP_PROFILE"),
 }
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-VLLM_NAME = os.getenv("VLLM_NAME")
 
+# Regex pattern to strip chain-of-thought <think> tags from LLM output
 THINK_TAG_RE = re.compile(r"(?is)<think\b[^>]*>.*?</think>")
 
 
+## LangGraph node function that performs a real-time web search via Exa MCP
 async def WebSearchAgent(state: dict) -> dict:
-    """Performs a real-time web search using Exa via MCP and returns the result as documents."""
+    """
+    args   : {
+        "state (dict)": "graph state with 'question' (str) or 'original_question' (str)"
+    }
+    return : {
+        "dict": "updated state with 'documents' (List[str]) containing the web search result"
+    }
+    """
     question = state.get("question", "") or state.get("original_question", "")
     if isinstance(question, dict):
+        # Extract plain-text task string if question is a structured dict
         question = question.get("task", "")
 
     client = MultiServerMCPClient(
@@ -36,10 +45,7 @@ async def WebSearchAgent(state: dict) -> dict:
     )
     tools = await client.get_tools()
     agent = create_react_agent(
-        model=ChatOpenAI(
-            model_name=VLLM_NAME,
-            api_key=OPENAI_API_KEY,
-        ),
+        model=get_llm(),
         tools=tools,
     )
     response = await agent.ainvoke({"messages": [{"role": "user", "content": question}]})

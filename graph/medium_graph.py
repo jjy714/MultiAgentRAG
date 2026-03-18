@@ -6,22 +6,28 @@ from agents.QuestionAnsweringAgent import QuestionAnsweringAgent
 from agents.WebSearchAgent import WebSearchAgent
 
 
+## Map the RagState final_raw_answer back to the GraphState final_answer field
 def _finalize_medium(state: RagState) -> dict:
-    """Map RagState final_raw_answer back to GraphState.final_answer."""
+    """
+    args   : {
+        "state (RagState)": "RAG state containing 'final_raw_answer' (dict)"
+    }
+    return : {
+        "dict": "updated state with 'final_answer' (str) extracted from QAAnswerState"
+    }
+    """
     raw = state.get("final_raw_answer", {})
     answer = raw.get("answer", "") if isinstance(raw, dict) else str(raw)
     return {"final_answer": answer}
 
 
+## Build and compile the medium-tier single-pass RAG graph with parallel retrieval and web search
 def create_medium_graph():
     """
-    Medium tier (single-pass RAG):
-      retriever_node → ExtractorAgent ─┐
-                                        ├─→ QuestionAnsweringAgent → END
-      WebSearchAgent ──────────────────┘
-    
-    Both retrieval and web search run, their outputs (documents + notes) 
-    are merged as context for QuestionAnsweringAgent.
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled medium-tier graph ready for invocation"
+    }
     """
     graph = StateGraph(RagState)
 

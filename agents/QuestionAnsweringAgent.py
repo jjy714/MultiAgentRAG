@@ -1,19 +1,25 @@
 import os
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from dotenv import load_dotenv
 from agents.load_prompt import get_system_prompt, get_user_prompt
+from agents.llm import get_llm
 from graph.state import QAAnswerState
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-VLLM_NAME = os.getenv("VLLM_NAME")
 AGENT_PROMPT = "agents/Prompts/QuestionAnsweringAgent.yaml"
 
 
+## LangGraph node function that synthesizes a final answer from retrieved context and extracted notes
 def QuestionAnsweringAgent(state: dict) -> dict:
-    """Answers the question using retrieved + extracted context."""
+    """
+    args   : {
+        "state (dict)": "graph state with 'question' (str), 'documents' (List[str]), 'notes' (List[str])"
+    }
+    return : {
+        "dict": "updated state with 'final_raw_answer' (QAAnswerState)"
+    }
+    """
     question = state.get("question", "")
     documents = state.get("documents", [])
     notes = state.get("notes", [])
@@ -23,12 +29,7 @@ def QuestionAnsweringAgent(state: dict) -> dict:
     system_prompt = get_system_prompt(AGENT_PROMPT)
     user_prompt = get_user_prompt(AGENT_PROMPT)
 
-    llm = ChatOpenAI(
-        model_name=VLLM_NAME,
-        api_key=OPENAI_API_KEY,
-        temperature=0
-    )
-    structured_llm = llm.with_structured_output(QAAnswerState)
+    structured_llm = get_llm().with_structured_output(QAAnswerState)
     result: QAAnswerState = structured_llm.invoke([
         SystemMessage(system_prompt),
         HumanMessage(user_prompt.format(context=context, question=question))

@@ -2,12 +2,15 @@ from collections import Counter
 from graph.state import DiscussionState
 
 
+## LangGraph node function that tallies advocate votes and selects the majority routing tier
 def ModeratorAgent(state: DiscussionState) -> dict:
     """
-    Strict majority-vote moderator.
-    Counts votes from all three advocates and picks the majority.
-    Tie-break (1-1-1): defaults to 'medium'.
-    No LLM call — pure deterministic vote counter.
+    args   : {
+        "state (DiscussionState)": "discussion state containing 'votes' (List[AdvocateVote])"
+    }
+    return : {
+        "dict": "updated state with 'complexity' (str) set to the winning tier"
+    }
     """
     votes = state.get("votes", [])
     vote_counts = Counter(v.get("vote", "medium") for v in votes)

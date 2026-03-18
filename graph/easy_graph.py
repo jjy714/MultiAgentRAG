@@ -4,13 +4,29 @@ from agents.DirectResponderAgent import DirectResponderAgent
 from agents.WebSearchAgent import WebSearchAgent
 
 
+## Conditional edge function that routes to web search if flagged, otherwise ends
 def _route_web(state: GraphState) -> str:
-    """After DirectResponder: go to web search if needed, else finish."""
+    """
+    args   : {
+        "state (GraphState)": "graph state with 'web_needed' (bool)"
+    }
+    return : {
+        "str": "'web_search' if web search is needed, otherwise END"
+    }
+    """
     return "web_search" if state.get("web_needed", False) else END
 
 
+## LangGraph node that runs web search and merges its result with the initial answer
 async def _web_search_then_finalize(state: GraphState) -> dict:
-    """Run WebSearchAgent and append its result to the final answer."""
+    """
+    args   : {
+        "state (GraphState)": "graph state with 'original_question' and 'final_answer'"
+    }
+    return : {
+        "dict": "updated state with merged 'final_answer' (str) and 'web_result' (str)"
+    }
+    """
     question = state.get("original_question", "")
     web_result = await WebSearchAgent({"question": question})
     web_docs = web_result.get("documents", [""])
@@ -20,11 +36,13 @@ async def _web_search_then_finalize(state: GraphState) -> dict:
     return {"final_answer": merged_answer, "web_result": web_content}
 
 
+## Build and compile the easy-tier graph with optional web search fallback
 def create_easy_graph():
     """
-    Easy tier:
-      DirectResponderAgent → [if web_needed] WebSearchAgent → END
-                           → [else]                         → END
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled easy-tier graph ready for invocation"
+    }
     """
     graph = StateGraph(GraphState)
 

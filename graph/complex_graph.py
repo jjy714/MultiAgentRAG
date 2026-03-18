@@ -11,8 +11,14 @@ from agents.WebSearchAgent import WebSearchAgent
 
 # ─── Inner single-task graphs ──────────────────────────────────────────────────
 
+## Build and compile a single-pass RAG subgraph for one sub-question via database retrieval
 def create_single_rag_graph():
-    """retrieve → extract → answer (for one sub-question via DB)."""
+    """
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled retrieve → extract → answer graph"
+    }
+    """
     g = StateGraph(RagState)
     g.add_node("retrieve", retriever_node)
     g.add_node("extract",  ExtractorAgent)
@@ -24,8 +30,14 @@ def create_single_rag_graph():
     return g.compile()
 
 
+## Build and compile a single-pass web search subgraph for one sub-question via web
 async def create_single_web_graph():
-    """web_search → extract → answer (for one sub-question via web)."""
+    """
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled web_search → extract → answer graph"
+    }
+    """
     g = StateGraph(RagState)
     g.add_node("web_search", WebSearchAgent)
     g.add_node("extract",    ExtractorAgent)
@@ -39,7 +51,16 @@ async def create_single_web_graph():
 
 # ─── Plan-executor inner loop nodes ────────────────────────────────────────────
 
+## Execute one database-retrieval step from the plan and append its output to state
 def single_rag_execute_node(state: PlanExecState) -> dict:
+    """
+    args   : {
+        "state (PlanExecState)": "plan execution state with 'step_question' and 'step_output'"
+    }
+    return : {
+        "dict": "updated state appending 'step_output' (dict) and 'step_notes' (List[str])"
+    }
+    """
     next_idx = len(state.get("step_output", []))
     rag_graph = create_single_rag_graph()
     result = rag_graph.invoke({"question": state["step_question"][next_idx]})
@@ -52,7 +73,16 @@ def single_rag_execute_node(state: PlanExecState) -> dict:
     }
 
 
+## Execute one web-search step from the plan and append its output to state
 async def single_web_execute_node(state: PlanExecState) -> dict:
+    """
+    args   : {
+        "state (PlanExecState)": "plan execution state with 'step_question' and 'step_output'"
+    }
+    return : {
+        "dict": "updated state appending 'step_output' (dict) and 'step_notes' (List[str])"
+    }
+    """
     next_idx = len(state.get("step_output", []))
     web_graph = await create_single_web_graph()
     result = await web_graph.ainvoke({"question": state["step_question"][next_idx]})
@@ -65,7 +95,16 @@ async def single_web_execute_node(state: PlanExecState) -> dict:
     }
 
 
+## Conditional edge function that decides whether to run RAG, web search, or terminate the loop
 def _router_branch(state: PlanExecState) -> Literal["rag_execute", "web_execute", "__end__"]:
+    """
+    args   : {
+        "state (PlanExecState)": "plan execution state with 'step_output' and 'plan'"
+    }
+    return : {
+        "str": "'rag_execute', 'web_execute', or END depending on the next step type"
+    }
+    """
     current_idx = len(state.get("step_output", []))
     if current_idx >= len(state.get("plan", [])):
         return END
@@ -79,10 +118,13 @@ def _router_branch(state: PlanExecState) -> Literal["rag_execute", "web_execute"
 
 # ─── Plan-executor loop graph ───────────────────────────────────────────────────
 
+## Build and compile the plan-executor loop: StepDefiner → [RAG | Web] → loops back
 def create_plan_executor_graph():
     """
-    StepDefinerAgent → [retrieve_db | web_search] → loops back → StepDefinerAgent
-    until all steps are done (stop=True), then exits to END.
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled plan-executor graph that loops until all steps are done"
+    }
     """
     g = StateGraph(PlanExecState)
     g.add_node("step_definer", StepDefinerAgent)
@@ -102,8 +144,16 @@ def create_plan_executor_graph():
 
 # ─── Complex tier top-level ─────────────────────────────────────────────────────
 
+## LangGraph node that invokes the plan-executor loop and returns the plan summary as the final answer
 async def complex_executor_node(state: GraphState) -> dict:
-    """Invokes the plan-executor loop. Returns plan_summary as final_answer."""
+    """
+    args   : {
+        "state (GraphState)": "graph state with 'original_question' and 'plan'"
+    }
+    return : {
+        "dict": "updated state with 'final_answer' (str) from the plan summary"
+    }
+    """
     plan_executor = create_plan_executor_graph()
     plan_exec_input: PlanExecState = {
         "original_question": state.get("original_question", ""),
@@ -118,10 +168,13 @@ async def complex_executor_node(state: GraphState) -> dict:
     return {"final_answer": result.get("plan_summary", "")}
 
 
+## Build and compile the complex-tier graph: PlannerAgent → complex_executor_node
 def create_complex_graph():
     """
-    Complex tier:
-      PlannerAgent → complex_executor_node (StepDefiner loop) → END
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled complex-tier graph ready for invocation"
+    }
     """
     g = StateGraph(GraphState)
     g.add_node("planner",  PlannerAgent)

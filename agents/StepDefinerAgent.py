@@ -1,22 +1,25 @@
 import os
-from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from dotenv import load_dotenv
 from agents.load_prompt import get_system_prompt, get_user_prompt
+from agents.llm import get_llm
 from graph.state import PlanExecState, StepTaskState
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-VLLM_NAME = os.getenv("VLLM_NAME")
 AGENT_PROMPT = "agents/Prompts/StepDefinerAgent.yaml"
 SUMMARY_AGENT_PROMPT = "agents/Prompts/PlanSummarizerAgent.yaml"
 
 
+## LangGraph node function that defines precise tasks for each plan step, or summarizes all results when done
 def StepDefinerAgent(state: PlanExecState) -> dict:
     """
-    For each step in the plan, defines the precise task and its execution type.
-    When all steps are done, summarizes all notes into a final answer.
+    args   : {
+        "state (PlanExecState)": "plan execution state with 'plan', 'step_output', 'step_question', 'step_notes', and 'original_question'"
+    }
+    return : {
+        "dict": "updated state — either 'step_question' (List[StepTaskState]) for the next step, or 'stop' (bool) and 'plan_summary' (str) when all steps are complete"
+    }
     """
     plan = state.get("plan", [])
     step_output = state.get("step_output", [])
@@ -25,11 +28,7 @@ def StepDefinerAgent(state: PlanExecState) -> dict:
     original_question = state.get("original_question", "")
     finished_step_id = len(step_output)
 
-    llm = ChatOpenAI(
-        model_name=VLLM_NAME,
-        api_key=OPENAI_API_KEY,
-        temperature=0
-    )
+    llm = get_llm()
 
     # All steps complete — produce final summary
     if finished_step_id >= len(plan):

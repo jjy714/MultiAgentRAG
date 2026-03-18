@@ -10,25 +10,24 @@ import os
 load_dotenv()
 from langchain_huggingface import HuggingFaceEmbeddings
 
+# Initialize HuggingFace sentence embedding model
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME")
-QDRANT_URL=os.getenv("QDRANT_URL")
+QDRANT_URL = os.getenv("QDRANT_URL")
 client = QdrantClient(":memory:")
 
 
-# @tool
-# def document_from_collection():
-#     qdrant = QdrantVectorStore.from_documents(
-#         docs,
-#         embeddings,
-#         url=QDRANT_URL,
-#         prefer_grpc=True,
-#         collection_name=QDRANT_COLLECTION_NAME,
-#     )
-#     return qdrant
-
+## Initialize a QdrantVectorStore client in the specified retrieval mode
 def initiate_qdrant_client(mode: str):
+    """
+    args   : {
+        "mode (str)": "retrieval mode — 'dense', 'sparse', or 'hybrid'"
+    }
+    return : {
+        "QdrantVectorStore": "configured Qdrant vector store instance"
+    }
+    """
     if mode == "dense":
         qdrant = QdrantVectorStore.from_existing_collection(
             embedding=embeddings,
@@ -53,7 +52,7 @@ def initiate_qdrant_client(mode: str):
             vector_name="dense",
             sparse_vector_name="sparse",
         )
-    
+
     return qdrant
 
 from langchain.tools.retriever import create_retriever_tool
@@ -63,20 +62,48 @@ retriever_tool = create_retriever_tool(
     "retrieve_blog_posts",
     "Search and return information about Lilian Weng blog posts.",
 )
+
+## LangChain tool that performs dense vector similarity search against Qdrant
 @tool
 def dense_search(query):
+    """
+    args   : {
+        "query (str)": "search query text"
+    }
+    return : {
+        "List[Document]": "most similar documents using dense vector retrieval"
+    }
+    """
     qdrant = initiate_qdrant_client("dense")
     found_docs = qdrant.similarity_search(query)
     return found_docs
 
+## LangChain tool that performs sparse keyword-based similarity search against Qdrant
 @tool
 def sparse_search(query):
+    """
+    args   : {
+        "query (str)": "search query text"
+    }
+    return : {
+        "List[Document]": "most similar documents using sparse vector retrieval"
+    }
+    """
     qdrant = initiate_qdrant_client("sparse")
     found_docs = qdrant.similarity_search(query)
     return found_docs
 
+## LangChain tool that performs hybrid dense+sparse similarity search against Qdrant
 @tool
 def hybrid_search(query):
+    """
+    args   : {
+        "query (str)": "search query text"
+    }
+    return : {
+        "List[Document]": "most similar documents using hybrid retrieval"
+    }
+    """
     qdrant = initiate_qdrant_client("hybrid")
     found_docs = qdrant.similarity_search(query)
     return found_docs

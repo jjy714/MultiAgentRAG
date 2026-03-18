@@ -6,33 +6,59 @@ from langgraph.prebuilt import InjectedState, create_react_agent
 from tools import transfer_tool
 
 
+### Agent class that orchestrates other agents using a tool-calling ReAct supervisor pattern
 class SupervisorAgent(Agent):
-    
+    """
+    args   : {
+        "tools (list)": "list of callable agent tools the supervisor can dispatch to"
+    }
+    return : {
+        "SupervisorAgent": "agent instance configured to delegate to sub-agents via tools"
+    }
+    """
+
+    ## Initialize the supervisor with a list of delegatable agent tools
     def __init__(self, tools: list):
+        """
+        args   : {
+            "tools (list)": "list of callable agent-as-tool functions"
+        }
+        return : {
+            "None": "initializes self.tools"
+        }
+        """
         self.tools = tools
-    
+
+    ## Sub-agent function 1 — processes injected state and returns an LLM response
     def agent_1(state: Annotated[dict, InjectedState]):
-        # you can pass relevant parts of the state to the LLM (e.g., state["messages"])
-        # and add any additional logic (different models, custom prompts, structured output, etc.)
+        """
+        args   : {
+            "state (Annotated[dict, InjectedState])": "current graph state passed by the supervisor"
+        }
+        return : {
+            "str": "LLM response content to be returned as a ToolMessage"
+        }
+        """
+        # Pass relevant parts of the state to the LLM (e.g., state["messages"])
         response = model.invoke(...)
-        # return the LLM response as a string (expected tool response format)
-        # this will be automatically turned to ToolMessage
-        # by the prebuilt create_react_agent (supervisor)
+        # Return the LLM response as a string; automatically wrapped as ToolMessage
         return response.content
-    
 
 
 model = ChatOpenAI()
 
-# this is the agent function that will be called as tool
-# notice that you can pass the state to the tool via InjectedState annotation
-
-
+# Sub-agent function 2 — processes injected state and returns an LLM response
 def agent_2(state: Annotated[dict, InjectedState]):
+    """
+    args   : {
+        "state (Annotated[dict, InjectedState])": "current graph state passed by the supervisor"
+    }
+    return : {
+        "str": "LLM response content to be returned as a ToolMessage"
+    }
+    """
     response = model.invoke(...)
     return response.content
 
-# the simplest way to build a supervisor w/ tool-calling is to use prebuilt ReAct agent graph
-# that consists of a tool-calling LLM node (i.e. supervisor) and a tool-executing node
+# Build a supervisor using the prebuilt ReAct agent with tool-calling
 supervisor = create_react_agent(model, tools)
-

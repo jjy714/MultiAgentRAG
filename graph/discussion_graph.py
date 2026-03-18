@@ -6,11 +6,13 @@ from agents.DeepResearcherAdvocate import DeepResearcherAdvocate
 from agents.ModeratorAgent import ModeratorAgent
 
 
+## Build and compile the discussion panel graph with three parallel advocates and a moderator
 def create_discussion_graph():
     """
-    Three advocate agents run in parallel fan-out from START.
-    All three fan back into a Moderator that applies strict majority vote.
-    Outputs DiscussionState with 'complexity' field set.
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled discussion graph with fan-out/fan-in topology"
+    }
     """
     graph = StateGraph(DiscussionState)
 

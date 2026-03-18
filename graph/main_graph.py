@@ -8,10 +8,15 @@ from graph.complex_graph import create_complex_graph
 
 # ─── Discussion Panel node ──────────────────────────────────────────────────────
 
+## LangGraph node that runs the 3-advocate discussion panel and writes complexity to GraphState
 async def discussion_panel_node(state: GraphState) -> dict:
     """
-    Runs the discussion graph (3 parallel advocate agents + moderator).
-    Writes the resulting 'complexity' back to GraphState.
+    args   : {
+        "state (GraphState)": "graph state containing 'original_question' (str)"
+    }
+    return : {
+        "dict": "updated state with 'complexity' (str) set to 'easy', 'medium', or 'complex'"
+    }
     """
     discussion_graph = create_discussion_graph()
     discussion_input: DiscussionState = {
@@ -29,12 +34,30 @@ async def discussion_panel_node(state: GraphState) -> dict:
 
 # ─── Tier wrapper nodes ─────────────────────────────────────────────────────────
 
+## LangGraph node that delegates the query to the easy-tier subgraph
 async def easy_node(state: GraphState) -> dict:
+    """
+    args   : {
+        "state (GraphState)": "full graph state"
+    }
+    return : {
+        "dict": "updated state with 'final_answer' (str) from the easy tier"
+    }
+    """
     easy_graph = create_easy_graph()
     return await easy_graph.ainvoke(state)
 
 
+## LangGraph node that delegates the query to the medium-tier single-pass RAG subgraph
 async def medium_node(state: GraphState) -> dict:
+    """
+    args   : {
+        "state (GraphState)": "full graph state containing 'original_question'"
+    }
+    return : {
+        "dict": "updated state with 'final_answer' (str) from the medium tier"
+    }
+    """
     medium_graph = create_medium_graph()
     medium_input = {
         "question": state.get("original_question", ""),
@@ -49,23 +72,44 @@ async def medium_node(state: GraphState) -> dict:
     return {"final_answer": answer}
 
 
+## LangGraph node that delegates the query to the complex multi-step plan-executor subgraph
 async def complex_node(state: GraphState) -> dict:
+    """
+    args   : {
+        "state (GraphState)": "full graph state containing 'original_question' and 'plan'"
+    }
+    return : {
+        "dict": "updated state with 'final_answer' (str) from the complex tier"
+    }
+    """
     complex_graph = create_complex_graph()
     return await complex_graph.ainvoke(state)
 
 
 # ─── Router ─────────────────────────────────────────────────────────────────────
 
+## Conditional edge function that routes the graph to the correct tier based on complexity
 def route_by_complexity(state: GraphState) -> str:
+    """
+    args   : {
+        "state (GraphState)": "graph state with 'complexity' (str)"
+    }
+    return : {
+        "str": "tier name — 'easy', 'medium', or 'complex'"
+    }
+    """
     return state.get("complexity", "medium")
 
 
 # ─── Main graph ─────────────────────────────────────────────────────────────────
 
+## Build and compile the top-level orchestration graph
 def create_main_graph():
     """
-    Top-level graph:
-      discussion_panel → [easy | medium | complex] → END
+    args   : {}
+    return : {
+        "CompiledStateGraph": "compiled LangGraph graph ready for invocation"
+    }
     """
     graph = StateGraph(GraphState)
 

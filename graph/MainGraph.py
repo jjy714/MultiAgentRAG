@@ -5,11 +5,16 @@ from agents import RetrievalAgent, SupervisorAgent, WebAgent
 from graph.state import State
 
 
-
-
-
-# Conditional edge function to route to the appropriate node
+## Conditional edge function that routes to the appropriate output node based on the decision field
 def route_decision(state: State):
+    """
+    args   : {
+        "state (State)": "graph state containing a 'decision' key with value 'story', 'joke', or 'poem'"
+    }
+    return : {
+        "str": "name of the next node to visit — 'llm_call_1', 'llm_call_2', or 'llm_call_3'"
+    }
+    """
     # Return the node name you want to visit next
     if state["decision"] == "story":
         return "llm_call_1"
