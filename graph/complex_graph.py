@@ -65,7 +65,13 @@ def single_rag_execute_node(state: PlanExecState) -> dict:
     """
     next_idx = len(state.get("step_output", []))
     rag_graph = create_single_rag_graph()
-    result = rag_graph.invoke({"question": state["step_question"][next_idx]})
+    result = rag_graph.invoke({
+        "question": state["step_question"][next_idx],
+        "documents": [],
+        "doc_ids": [],
+        "notes": [],
+        "final_raw_answer": None
+    })
     raw = result.get("final_raw_answer", {})
     answer = raw.get("answer", "") if isinstance(raw, dict) else str(raw)
     print(f"[complex] RAG step {next_idx}: {answer[:80]}...")
@@ -87,7 +93,13 @@ async def single_web_execute_node(state: PlanExecState) -> dict:
     """
     next_idx = len(state.get("step_output", []))
     web_graph = await create_single_web_graph()
-    result = await web_graph.ainvoke({"question": state["step_question"][next_idx]})
+    result = await web_graph.ainvoke({
+        "question": state["step_question"][next_idx],
+        "documents": [],
+        "doc_ids": [],
+        "notes": [],
+        "final_raw_answer": None
+    })
     raw = result.get("final_raw_answer", {})
     answer = raw.get("answer", "") if isinstance(raw, dict) else str(raw)
     print(f"[complex] Web step {next_idx}: {answer[:80]}...")
