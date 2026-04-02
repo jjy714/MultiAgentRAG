@@ -60,18 +60,22 @@ def single_rag_execute_node(state: PlanExecState) -> dict:
         "state (PlanExecState)": "plan execution state with 'step_question' and 'step_output'"
     }
     return : {
-        "dict": "updated state appending 'step_output' (dict) and 'step_notes' (List[str])"
+        "dict": "updated state appending 'step_output' (dict), 'step_notes' (List[str]), and 'token_usage'"
     }
     """
     next_idx = len(state.get("step_output", []))
     rag_graph = create_single_rag_graph()
-    result = rag_graph.invoke({"question": state["step_question"][next_idx]})
+    result = rag_graph.invoke({
+        "question": state["step_question"][next_idx],
+        "token_usage": {}
+    })
     raw = result.get("final_raw_answer", {})
     answer = raw.get("answer", "") if isinstance(raw, dict) else str(raw)
     print(f"[complex] RAG step {next_idx}: {answer[:80]}...")
     return {
         "step_output": [{"task": state["step_question"][next_idx], "answer": answer}],
         "step_notes": result.get("notes", []),
+        "token_usage": result.get("token_usage", {})
     }
 
 
@@ -82,18 +86,22 @@ async def single_web_execute_node(state: PlanExecState) -> dict:
         "state (PlanExecState)": "plan execution state with 'step_question' and 'step_output'"
     }
     return : {
-        "dict": "updated state appending 'step_output' (dict) and 'step_notes' (List[str])"
+        "dict": "updated state appending 'step_output' (dict), 'step_notes' (List[str]), and 'token_usage'"
     }
     """
     next_idx = len(state.get("step_output", []))
     web_graph = await create_single_web_graph()
-    result = await web_graph.ainvoke({"question": state["step_question"][next_idx]})
+    result = await web_graph.ainvoke({
+        "question": state["step_question"][next_idx],
+        "token_usage": {}
+    })
     raw = result.get("final_raw_answer", {})
     answer = raw.get("answer", "") if isinstance(raw, dict) else str(raw)
     print(f"[complex] Web step {next_idx}: {answer[:80]}...")
     return {
         "step_output": [{"task": state["step_question"][next_idx], "answer": answer}],
         "step_notes": result.get("notes", []),
+        "token_usage": result.get("token_usage", {})
     }
 
 
@@ -157,7 +165,7 @@ async def complex_executor_node(state: GraphState) -> dict:
         "state (GraphState)": "graph state with 'original_question' and 'plan'"
     }
     return : {
-        "dict": "updated state with 'final_answer' (str) from the plan summary"
+        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
     }
     """
     plan_executor = create_plan_executor_graph()
@@ -169,9 +177,13 @@ async def complex_executor_node(state: GraphState) -> dict:
         "step_notes": [],
         "stop": False,
         "plan_summary": None,
+        "token_usage": {},
     }
     result = await plan_executor.ainvoke(plan_exec_input)
-    return {"final_answer": result.get("plan_summary", "")}
+    return {
+        "final_answer": result.get("plan_summary", ""),
+        "token_usage": result.get("token_usage", {})
+    }
 
 
 ## Build and compile the complex-tier graph: PlannerAgent → complex_executor_node

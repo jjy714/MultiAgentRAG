@@ -6,6 +6,8 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import AIMessage
 from dotenv import load_dotenv
 from agents.llm import get_llm
+from agents.token_utils import normalize_token_usage
+from graph.state.GraphState import sum_dicts
 
 load_dotenv()
 
@@ -27,7 +29,7 @@ async def WebSearchAgent(state: dict) -> dict:
         "state (dict)": "graph state with 'question' (str) or 'original_question' (str)"
     }
     return : {
-        "dict": "updated state with 'documents' (List[str]) containing the web search result"
+        "dict": "updated state with 'documents' (List[str]) and 'token_usage'"
     }
     """
     question = state.get("question", "") or state.get("original_question", "")
@@ -51,12 +53,18 @@ async def WebSearchAgent(state: dict) -> dict:
     response = await agent.ainvoke({"messages": [{"role": "user", "content": question}]})
     messages = response.get("messages", [])
 
-    # Extract the last AIMessage content, stripping chain-of-thought tags
+    # Extract the last AIMessage content and aggregate token usage
     final_content = ""
-    for msg in reversed(messages):
-        if isinstance(msg, AIMessage) and msg.content:
-            final_content = THINK_TAG_RE.sub("", msg.content).strip()
-            break
+    token_usage = {}
+    for msg in messages:
+        if isinstance(msg, AIMessage):
+            if msg.content:
+                final_content = THINK_TAG_RE.sub("", msg.content).strip()
+            if hasattr(msg, 'usage_metadata') and msg.usage_metadata:
+                token_usage = sum_dicts(token_usage, normalize_token_usage(msg.usage_metadata))
 
     print(f"[WebSearchAgent] Retrieved {len(final_content)} chars from web.")
-    return {"documents": [final_content]}
+    return {
+        "documents": [final_content],
+        "token_usage": token_usage
+    }

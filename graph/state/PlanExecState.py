@@ -1,5 +1,6 @@
 from typing import TypedDict, List, Annotated, Optional
 import operator
+from graph.state.GraphState import sum_dicts
 
 
 ### State for the plan-executor loop that manages step-by-step execution of a complex query
@@ -12,7 +13,8 @@ class PlanExecState(TypedDict):
         "step_output (List[dict])": "accumulated per-step results",
         "step_notes (List[str])": "accumulated extracted notes across all steps",
         "stop (bool)": "flag set to True when all steps are complete",
-        "plan_summary (Optional[str])": "synthesized final answer across all steps"
+        "plan_summary (Optional[str])": "synthesized final answer across all steps",
+        "token_usage (dict)": "accumulated token usage metadata"
     }
     return : {
         "PlanExecState": "typed dict for the plan executor subgraph"
@@ -25,3 +27,4 @@ class PlanExecState(TypedDict):
     step_notes: Annotated[List[str], operator.add]          # accumulated extracted notes
     stop: bool                                              # true when all steps done
     plan_summary: Optional[str]
+    token_usage: Annotated[dict, sum_dicts]

@@ -15,7 +15,7 @@ async def discussion_panel_node(state: GraphState) -> dict:
         "state (GraphState)": "graph state containing 'original_question' (str)"
     }
     return : {
-        "dict": "updated state with 'complexity' (str) set to 'easy', 'medium', or 'complex'"
+        "dict": "updated state with 'complexity' (str) and 'token_usage' (dict)"
     }
     """
     discussion_graph = create_discussion_graph()
@@ -23,13 +23,18 @@ async def discussion_panel_node(state: GraphState) -> dict:
         "question": state.get("original_question", ""),
         "votes": [],
         "complexity": "",
+        "token_usage": {},
     }
     result = await discussion_graph.ainvoke(discussion_input)
     complexity = result.get("complexity", "medium")
+    token_usage = result.get("token_usage", {})
     print(f"\n{'='*50}")
     print(f"[DiscussionPanel] Routing to tier: '{complexity}'")
     print(f"{'='*50}\n")
-    return {"complexity": complexity}
+    return {
+        "complexity": complexity,
+        "token_usage": token_usage
+    }
 
 
 # ─── Tier wrapper nodes ─────────────────────────────────────────────────────────
@@ -41,11 +46,15 @@ async def easy_node(state: GraphState) -> dict:
         "state (GraphState)": "full graph state"
     }
     return : {
-        "dict": "updated state with 'final_answer' (str) from the easy tier"
+        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
     }
     """
     easy_graph = create_easy_graph()
-    return await easy_graph.ainvoke(state)
+    result = await easy_graph.ainvoke(state)
+    return {
+        "final_answer": result.get("final_answer"),
+        "token_usage": result.get("token_usage", {}),
+    }
 
 
 ## LangGraph node that delegates the query to the medium-tier single-pass RAG subgraph
@@ -55,7 +64,7 @@ async def medium_node(state: GraphState) -> dict:
         "state (GraphState)": "full graph state containing 'original_question'"
     }
     return : {
-        "dict": "updated state with 'final_answer' (str) from the medium tier"
+        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
     }
     """
     medium_graph = create_medium_graph()
@@ -65,11 +74,15 @@ async def medium_node(state: GraphState) -> dict:
         "doc_ids": [],
         "notes": [],
         "final_raw_answer": None,
+        "token_usage": {},
     }
     result = await medium_graph.ainvoke(medium_input)
     raw = result.get("final_raw_answer", {})
     answer = raw.get("answer", "") if isinstance(raw, dict) else str(raw)
-    return {"final_answer": answer}
+    return {
+        "final_answer": answer,
+        "token_usage": result.get("token_usage", {}),
+    }
 
 
 ## LangGraph node that delegates the query to the complex multi-step plan-executor subgraph
@@ -79,11 +92,15 @@ async def complex_node(state: GraphState) -> dict:
         "state (GraphState)": "full graph state containing 'original_question' and 'plan'"
     }
     return : {
-        "dict": "updated state with 'final_answer' (str) from the complex tier"
+        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
     }
     """
     complex_graph = create_complex_graph()
-    return await complex_graph.ainvoke(state)
+    result = await complex_graph.ainvoke(state)
+    return {
+        "final_answer": result.get("final_answer"),
+        "token_usage": result.get("token_usage", {}),
+    }
 
 
 # ─── Router ─────────────────────────────────────────────────────────────────────

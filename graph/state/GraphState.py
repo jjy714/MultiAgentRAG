@@ -1,6 +1,11 @@
 from typing import TypedDict, List, Annotated, Optional
 import operator
 
+def sum_dicts(d1: dict, d2: dict) -> dict:
+    """Combines two token usage dicts by summing their values."""
+    if not d1: return d2
+    if not d2: return d1
+    return {k: d1.get(k, 0) + d2.get(k, 0) for k in set(d1) | set(d2)}
 
 ### Structured output schema for a QA agent's answer
 class QAAnswerState(TypedDict):
@@ -53,7 +58,8 @@ class GraphState(TypedDict):
         "is_report (bool)": "whether to produce a formal report output",
         "plan_summary (Optional[str])": "synthesized summary across all steps",
         "web_needed (bool)": "whether web search is required (easy tier)",
-        "web_result (Optional[str])": "raw web search result (easy tier)"
+        "web_result (Optional[str])": "raw web search result (easy tier)",
+        "token_usage (dict)": "accumulated token usage metadata"
     }
     return : {
         "GraphState": "typed dict encompassing the full pipeline state"
@@ -63,6 +69,7 @@ class GraphState(TypedDict):
     original_question: str
     complexity: str                                      # "easy" | "medium" | "complex"
     final_answer: Optional[str]
+    token_usage: Annotated[dict, sum_dicts]
 
     # Medium & Complex tier
     documents: List[str]

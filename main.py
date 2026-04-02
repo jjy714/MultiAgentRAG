@@ -1,4 +1,5 @@
 import asyncio
+import asyncio
 from graph.main_graph import create_main_graph
 
 
@@ -28,15 +29,25 @@ async def run(question: str):
         "plan_summary": None,
         "web_needed": False,
         "web_result": None,
+        "token_usage": {},
     }
     result = await graph.ainvoke(initial_state)
     print("\n" + "=" * 60)
     print("FINAL ANSWER")
     print("=" * 60)
     print(result.get("final_answer", "No answer generated."))
+
+    usage = result.get("token_usage", {})
+    print("\n" + "=" * 60)
+    print("TOKEN USAGE")
+    print("=" * 60)
+    print(f"Total tokens:      {usage.get('total_tokens', 0)}")
+    print(f"Prompt tokens:     {usage.get('prompt_tokens', 0)}")
+    print(f"Completion tokens: {usage.get('completion_tokens', 0)}")
     return result
 
-
+# What is the difference between supervised and unsupervised learning?
+# What is an agent?
 if __name__ == "__main__":
     question = input("Enter your question: ")
     asyncio.run(run(question))

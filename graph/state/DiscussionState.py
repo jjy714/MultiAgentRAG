@@ -1,5 +1,6 @@
 from typing import TypedDict, Annotated, List
 import operator
+from graph.state.GraphState import sum_dicts
 
 
 ### Typed dict representing a single advocate agent's vote in the discussion panel
@@ -25,7 +26,8 @@ class DiscussionState(TypedDict):
     args   : {
         "question (str)": "the user's original query",
         "votes (List[AdvocateVote])": "accumulated votes from advocate agents",
-        "complexity (str)": "final routing decision set by the ModeratorAgent"
+        "complexity (str)": "final routing decision set by the ModeratorAgent",
+        "token_usage (dict)": "accumulated token usage metadata"
     }
     return : {
         "DiscussionState": "typed dict for the discussion panel subgraph"
@@ -34,3 +36,4 @@ class DiscussionState(TypedDict):
     question: str
     votes: Annotated[List[AdvocateVote], operator.add]  # parallel fan-in via reducer
     complexity: str  # final decision set by ModeratorAgent
+    token_usage: Annotated[dict, sum_dicts]
