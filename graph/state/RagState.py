@@ -1,4 +1,5 @@
 from typing import TypedDict, List, Annotated, Optional
+import operator
 from graph.state.GraphState import sum_dicts
 
 
@@ -18,8 +19,8 @@ class RagState(TypedDict):
     }
     """
     question: str
-    documents: List[str]
-    doc_ids: List[str]
-    notes: List[str]
+    documents: Annotated[List[str], operator.add]
+    doc_ids: Annotated[List[str], operator.add]
+    notes: Annotated[List[str], operator.add]
     final_raw_answer: Optional[dict]   # QAAnswerState
     token_usage: Annotated[dict, sum_dicts]

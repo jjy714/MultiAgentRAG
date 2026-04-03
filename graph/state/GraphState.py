@@ -2,10 +2,23 @@ from typing import TypedDict, List, Annotated, Optional
 import operator
 
 def sum_dicts(d1: dict, d2: dict) -> dict:
-    """Combines two token usage dicts by summing their values."""
+    """Combines two token usage dicts by summing their numeric values.
+    Non-numeric values (e.g. nested dicts from newer LangChain usage_metadata)
+    are ignored so they don't raise TypeError."""
     if not d1: return d2
     if not d2: return d1
-    return {k: d1.get(k, 0) + d2.get(k, 0) for k in set(d1) | set(d2)}
+    result = {}
+    for k in set(d1) | set(d2):
+        v1 = d1.get(k, 0)
+        v2 = d2.get(k, 0)
+        if isinstance(v1, (int, float)) and isinstance(v2, (int, float)):
+            result[k] = v1 + v2
+        elif isinstance(v1, (int, float)):
+            result[k] = v1
+        elif isinstance(v2, (int, float)):
+            result[k] = v2
+        # skip non-numeric values (e.g. nested dicts like input_token_details)
+    return result
 
 ### Structured output schema for a QA agent's answer
 class QAAnswerState(TypedDict):

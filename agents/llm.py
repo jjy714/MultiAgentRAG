@@ -24,6 +24,7 @@ def get_llm(temperature: float = 0, **kwargs):
             base_url=base_url,
             api_key=api_key,
             temperature=temperature,
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             **kwargs,
         )
     else:

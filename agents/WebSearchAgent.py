@@ -37,6 +37,10 @@ async def WebSearchAgent(state: dict) -> dict:
         # Extract plain-text task string if question is a structured dict
         question = question.get("task", "")
 
+    if not SMITHERY_EXA_URL:
+        print("[WebSearchAgent] SMITHERY_EXA_URL not configured — skipping web search.")
+        return {"documents": [], "token_usage": {}}
+
     client = MultiServerMCPClient(
         {
             "exa": {
