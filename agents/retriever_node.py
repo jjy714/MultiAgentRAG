@@ -12,8 +12,8 @@ load_dotenv()
 QDRANT_PORT = os.getenv("QDRANT_PORT", "6333")
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "documents")
 SERVER_HOST = os.getenv("SERVER_HOST", "localhost")
-EMBEDDING_PORT = os.getenv("EMBEDDING_PORT", "8080")
-
+EMBEDDING_PORT = os.getenv("EMBEDDING_PORT", "8000")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "/datadrive/data/Qwen3-Embedding-0.6B/")
 
 _SYSTEM_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_CACHE = _SYSTEM_ROOT / "question_embeddings.json"
@@ -36,6 +36,34 @@ def _load_embedding_cache() -> dict[str, list[float]]:
     return {}
 
 
+def _cache_path() -> Path:
+    """Return the path of the active cache file (for write-through)."""
+    env_path = os.getenv("EMBEDDING_CACHE_PATH", "")
+    if env_path:
+        p = Path(env_path)
+        if p.exists():
+            return p
+    if _DEFAULT_CACHE.exists():
+        return _DEFAULT_CACHE
+    return _DEFAULT_CACHE
+
+
+def _embed_via_server(query: str) -> list[float] | None:
+    """Call the Qwen embedding server and return the embedding vector."""
+    url = f"http://{SERVER_HOST}:{EMBEDDING_PORT}/v1/embeddings"
+    try:
+        resp = requests.post(
+            url,
+            json={"model": EMBEDDING_MODEL, "input": [query]},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()["data"][0]["embedding"]
+    except Exception as exc:
+        print(f"[retriever] Embedding server error: {exc}")
+        return None
+
+
 ### Retriever class that connects to Qdrant and performs vector similarity search
 class Retriever:
     def __init__(self):
@@ -46,24 +74,59 @@ class Retriever:
                 vectors_config=VectorParams(size=1024, distance=Distance.COSINE),
             )
         self._cache: dict[str, list[float]] = _load_embedding_cache()
+        self._cache_file: Path = _cache_path()
 
-    ## Return a pre-computed embedding vector, finding the nearest cached key if no exact match
+    def _save_to_cache(self, query: str, vector: list[float]) -> None:
+        """Write a new embedding to the in-memory cache and persist to disk."""
+        self._cache[query] = vector
+        try:
+            with open(self._cache_file, "w", encoding="utf-8") as f:
+                json.dump(self._cache, f)
+        except Exception as exc:
+            print(f"[retriever] Could not persist cache: {exc}")
+
+    def _nearest_cached(self, query: str) -> np.ndarray:
+        """Stopword-filtered Jaccard nearest-neighbour fallback when server is down."""
+        _STOPWORDS = {
+            "a", "an", "the", "is", "are", "was", "were", "be", "been",
+            "what", "which", "who", "whom", "when", "where", "why", "how",
+            "of", "in", "on", "at", "to", "for", "from", "by", "with",
+            "and", "or", "but", "not", "does", "do", "did", "has", "have",
+            "had", "will", "would", "could", "should", "may", "might",
+            "this", "that", "these", "those", "it", "its", "about",
+        }
+        def _tokens(s: str) -> set:
+            return {w for w in s.lower().split() if w not in _STOPWORDS and len(w) > 1}
+
+        query_tokens = _tokens(query)
+        if not query_tokens or not self._cache:
+            return np.array([])
+
+        best_key = max(
+            self._cache,
+            key=lambda k: len(query_tokens & _tokens(k))
+                          / max(len(query_tokens | _tokens(k)), 1),
+        )
+        score = len(query_tokens & _tokens(best_key)) / max(len(query_tokens | _tokens(best_key)), 1)
+        print(f"[retriever] Nearest cached key (Jaccard={score:.2f}): '{best_key[:80]}'")
+        return np.array(self._cache[best_key], dtype=np.float32)
+
+    ## Return the embedding vector from cache or live server
     def vectorize(self, query: str) -> np.ndarray:
+        # Cache hit
         if query in self._cache:
             return np.array(self._cache[query], dtype=np.float32)
-        # Fuzzy fallback: find the cached key with the highest token-overlap (Jaccard)
-        if self._cache:
-            query_tokens = set(query.lower().split())
-            best_key = max(
-                self._cache,
-                key=lambda k: len(query_tokens & set(k.lower().split()))
-                              / max(len(query_tokens | set(k.lower().split())), 1),
-            )
-            score = len(query_tokens & set(best_key.lower().split())) \
-                    / max(len(query_tokens | set(best_key.lower().split())), 1)
-            print(f"[retriever] Cache miss — using nearest cached key (Jaccard={score:.2f}): '{best_key[:80]}'")
-            return np.array(self._cache[best_key], dtype=np.float32)
-        return np.array([])
+
+        # Cache miss — call the embedding server
+        print(f"[retriever] Cache miss for '{query[:80]}' — calling embedding server")
+        vector = _embed_via_server(query)
+        if vector is not None:
+            self._save_to_cache(query, vector)
+            return np.array(vector, dtype=np.float32)
+
+        # Server unavailable — fall back to nearest cached key by token similarity
+        print(f"[retriever] Server unavailable — using nearest cached key")
+        return self._nearest_cached(query)
 
     ## Search Qdrant for the top-k most similar document vectors
     def vector_search(self, query: str, k: int = 5):

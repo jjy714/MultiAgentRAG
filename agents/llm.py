@@ -16,7 +16,7 @@ def get_llm(temperature: float = 0, **kwargs):
     if LLM_BACKEND == "local":
         from langchain_openai import ChatOpenAI
         base_url = os.getenv("VLLM_BASE_URL", "http://localhost:11434/v1")
-        model = os.getenv("VLLM_NAME", "qwen2.5:3b")
+        model = os.getenv("VLLM_NAME", "/datadrive/data/gpt-oss-20b")
         api_key = os.getenv("OPENAI_API_KEY", "ollama")
         logger.info(f"get_llm [local] model={model} base_url={base_url}")
         return ChatOpenAI(
@@ -24,6 +24,7 @@ def get_llm(temperature: float = 0, **kwargs):
             base_url=base_url,
             api_key=api_key,
             temperature=temperature,
+            max_tokens=4096,
             extra_body={"chat_template_kwargs": {"enable_thinking": False}},
             **kwargs,
         )
