@@ -91,7 +91,7 @@ class GraphState(TypedDict):
 
     # Complex tier
     plan: List[str]
-    step_question: List[dict]
+    step_question: Annotated[List[dict], operator.add]
     step_output: Annotated[List[StepOutput], operator.add]
     step_notes: Annotated[List[str], operator.add]
     is_report: bool

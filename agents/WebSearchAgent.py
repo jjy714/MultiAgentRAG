@@ -1,9 +1,7 @@
 import os
 import re
-from urllib.parse import urlencode
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langgraph.prebuilt import create_react_agent
-from langchain_core.messages import AIMessage
+import httpx
+from langchain_core.messages import AIMessage, HumanMessage
 from dotenv import load_dotenv
 from agents.llm import get_llm
 from agents.token_utils import normalize_token_usage
@@ -11,18 +9,14 @@ from graph.state.GraphState import sum_dicts
 
 load_dotenv()
 
-# Environment variable configuration for the Exa MCP web search service
-SMITHERY_EXA_URL = os.getenv("SMITHERY_EXA_URL")
-SMITHERY_EXA_PARAMS = {
-    "api_key": os.getenv("EXA_MCP_API_KEY"),
-    "profile": os.getenv("EXA_MCP_PROFILE"),
-}
+EXA_SEARCH_API_KEY = os.getenv("EXA_SEARCH_API_KEY")
+EXA_API_URL = "https://api.exa.ai/search"
 
 # Regex pattern to strip chain-of-thought <think> tags from LLM output
 THINK_TAG_RE = re.compile(r"(?is)<think\b[^>]*>.*?</think>")
 
 
-## LangGraph node function that performs a real-time web search via Exa MCP
+## LangGraph node function that performs a real-time web search via Exa REST API
 async def WebSearchAgent(state: dict) -> dict:
     """
     args   : {
@@ -34,41 +28,55 @@ async def WebSearchAgent(state: dict) -> dict:
     """
     question = state.get("question", "") or state.get("original_question", "")
     if isinstance(question, dict):
-        # Extract plain-text task string if question is a structured dict
         question = question.get("task", "")
 
-    if not SMITHERY_EXA_URL:
-        print("[WebSearchAgent] SMITHERY_EXA_URL not configured — skipping web search.")
+    if not EXA_SEARCH_API_KEY:
+        print("[WebSearchAgent] EXA_SEARCH_API_KEY not configured — skipping web search.")
         return {"documents": [], "token_usage": {}}
 
-    client = MultiServerMCPClient(
-        {
-            "exa": {
-                "transport": "streamable_http",
-                "url": f"{SMITHERY_EXA_URL}?{urlencode(SMITHERY_EXA_PARAMS)}",
-            }
-        }
-    )
-    tools = await client.get_tools()
-    agent = create_react_agent(
-        model=get_llm(),
-        tools=tools,
-    )
-    response = await agent.ainvoke({"messages": [{"role": "user", "content": question}]})
-    messages = response.get("messages", [])
+    # Retrieve search results from Exa REST API
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                EXA_API_URL,
+                headers={
+                    "x-api-key": EXA_SEARCH_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                json={"query": question, "numResults": 5, "contents": {"text": True}},
+                timeout=30.0,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as exc:
+        print(f"[WebSearchAgent] Exa API call failed: {exc}")
+        return {"documents": [], "token_usage": {}}
 
-    # Extract the last AIMessage content and aggregate token usage
-    final_content = ""
+    MAX_SNIPPET_CHARS = 2000
+    snippets = [r.get("text", "")[:MAX_SNIPPET_CHARS] for r in data.get("results", []) if r.get("text")]
+    if not snippets:
+        print("[WebSearchAgent] Exa returned no text results.")
+        return {"documents": [], "token_usage": {}}
+
+    context = "\n\n".join(snippets)
+    print(f"[WebSearchAgent] Retrieved {len(snippets)} results ({len(context)} chars) from Exa.")
+
+    # Synthesize a concise answer using the active LLM backend
+    synthesis_prompt = (
+        f"Using the following web search results, provide a concise and accurate answer "
+        f"to the question.\n\nQuestion: {question}\n\nSearch Results:\n{context}"
+    )
+    llm = get_llm()
+    response = await llm.ainvoke([HumanMessage(synthesis_prompt)])
+
+    final_content = THINK_TAG_RE.sub("", response.content).strip()
+
     token_usage = {}
-    for msg in messages:
-        if isinstance(msg, AIMessage):
-            if msg.content:
-                final_content = THINK_TAG_RE.sub("", msg.content).strip()
-            if hasattr(msg, 'usage_metadata') and msg.usage_metadata:
-                token_usage = sum_dicts(token_usage, normalize_token_usage(msg.usage_metadata))
+    if hasattr(response, "usage_metadata") and response.usage_metadata:
+        token_usage = normalize_token_usage(response.usage_metadata)
 
-    print(f"[WebSearchAgent] Retrieved {len(final_content)} chars from web.")
+    print(f"[WebSearchAgent] Synthesized {len(final_content)} chars from web.")
     return {
         "documents": [final_content],
-        "token_usage": token_usage
+        "token_usage": token_usage,
     }
