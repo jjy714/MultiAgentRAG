@@ -9,17 +9,7 @@ from agents.QuestionAnsweringAgent import QuestionAnsweringAgent
 from agents.WebSearchAgent import WebSearchAgent
 
 
-# ─── Inner single-task graphs ──────────────────────────────────────────────────
-
-
-## Build and compile a single-pass RAG subgraph for one sub-question via database retrieval
 def create_single_rag_graph():
-    """
-    args   : {}
-    return : {
-        "CompiledStateGraph": "compiled retrieve → extract → answer graph"
-    }
-    """
     g = StateGraph(RagState)
     g.add_node("retrieve", retriever_node)
     g.add_node("extract", ExtractorAgent)
@@ -31,14 +21,7 @@ def create_single_rag_graph():
     return g.compile()
 
 
-## Build and compile a single-pass web search subgraph for one sub-question via web
-async def create_single_web_graph():
-    """
-    args   : {}
-    return : {
-        "CompiledStateGraph": "compiled web_search → extract → answer graph"
-    }
-    """
+def create_single_web_graph():
     g = StateGraph(RagState)
     g.add_node("web_search", WebSearchAgent)
     g.add_node("extract", ExtractorAgent)
@@ -50,22 +33,9 @@ async def create_single_web_graph():
     return g.compile()
 
 
-# ─── Plan-executor inner loop nodes ────────────────────────────────────────────
-
-
-## Execute one database-retrieval step from the plan and append its output to state
 def single_rag_execute_node(state: PlanExecState) -> dict:
-    """
-    args   : {
-        "state (PlanExecState)": "plan execution state with 'step_question' and 'step_output'"
-    }
-    return : {
-        "dict": "updated state appending 'step_output' (dict), 'step_notes' (List[str]), and 'token_usage'"
-    }
-    """
     next_idx = len(state.get("step_output", []))
-    rag_graph = create_single_rag_graph()
-    result = rag_graph.invoke({
+    result = create_single_rag_graph().invoke({
         "question": state["step_question"][next_idx],
         "token_usage": {}
     })
@@ -79,19 +49,9 @@ def single_rag_execute_node(state: PlanExecState) -> dict:
     }
 
 
-## Execute one web-search step from the plan and append its output to state
 async def single_web_execute_node(state: PlanExecState) -> dict:
-    """
-    args   : {
-        "state (PlanExecState)": "plan execution state with 'step_question' and 'step_output'"
-    }
-    return : {
-        "dict": "updated state appending 'step_output' (dict), 'step_notes' (List[str]), and 'token_usage'"
-    }
-    """
     next_idx = len(state.get("step_output", []))
-    web_graph = await create_single_web_graph()
-    result = await web_graph.ainvoke({
+    result = await create_single_web_graph().ainvoke({
         "question": state["step_question"][next_idx],
         "token_usage": {}
     })
@@ -105,18 +65,7 @@ async def single_web_execute_node(state: PlanExecState) -> dict:
     }
 
 
-## Conditional edge function that decides whether to run RAG, web search, or terminate the loop
-def _router_branch(
-    state: PlanExecState,
-) -> Literal["rag_execute", "web_execute", "__end__"]:
-    """
-    args   : {
-        "state (PlanExecState)": "plan execution state with 'step_output' and 'plan'"
-    }
-    return : {
-        "str": "'rag_execute', 'web_execute', or END depending on the next step type"
-    }
-    """
+def _router_branch(state: PlanExecState) -> Literal["rag_execute", "web_execute", "__end__"]:
     current_idx = len(state.get("step_output", []))
     if current_idx >= len(state.get("plan", [])):
         return END
@@ -128,17 +77,7 @@ def _router_branch(
     return END
 
 
-# ─── Plan-executor loop graph ───────────────────────────────────────────────────
-
-
-## Build and compile the plan-executor loop: StepDefiner → [RAG | Web] → loops back
 def create_plan_executor_graph():
-    """
-    args   : {}
-    return : {
-        "CompiledStateGraph": "compiled plan-executor graph that loops until all steps are done"
-    }
-    """
     g = StateGraph(PlanExecState)
     g.add_node("step_definer", StepDefinerAgent)
     g.add_node("rag_execute", single_rag_execute_node)
@@ -155,20 +94,7 @@ def create_plan_executor_graph():
     return g.compile()
 
 
-# ─── Complex tier top-level ─────────────────────────────────────────────────────
-
-
-## LangGraph node that invokes the plan-executor loop and returns the plan summary as the final answer
 async def complex_executor_node(state: GraphState) -> dict:
-    """
-    args   : {
-        "state (GraphState)": "graph state with 'original_question' and 'plan'"
-    }
-    return : {
-        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
-    }
-    """
-    plan_executor = create_plan_executor_graph()
     plan_exec_input: PlanExecState = {
         "original_question": state.get("original_question", ""),
         "plan": state.get("plan", []),
@@ -179,25 +105,46 @@ async def complex_executor_node(state: GraphState) -> dict:
         "plan_summary": None,
         "token_usage": {},
     }
-    result = await plan_executor.ainvoke(plan_exec_input)
+    result = await create_plan_executor_graph().ainvoke(plan_exec_input)
     return {
         "final_answer": result.get("plan_summary", ""),
         "token_usage": result.get("token_usage", {})
     }
 
 
-## Build and compile the complex-tier graph: PlannerAgent → complex_executor_node
-def create_complex_graph():
-    """
-    args   : {}
-    return : {
-        "CompiledStateGraph": "compiled complex-tier graph ready for invocation"
+async def web_augment_node(state: GraphState) -> dict:
+    question = state.get("original_question", "")
+    web_result = await WebSearchAgent({"question": question})
+    web_docs = web_result.get("documents", [""])
+    web_content = web_docs[0] if web_docs else ""
+    if web_content:
+        merged = f"{state.get('final_answer', '')}\n\n[Web Context]\n{web_content}".strip()
+        print(f"[complex] Web augmentation added ({len(web_content)} chars).")
+    else:
+        merged = state.get("final_answer", "")
+    return {
+        "final_answer": merged,
+        "web_result": web_content,
+        "token_usage": web_result.get("token_usage", {})
     }
-    """
+
+
+def _route_web(state: GraphState) -> str:
+    return "web_augment" if state.get("web_needed", False) else END
+
+
+def create_complex_graph():
     g = StateGraph(GraphState)
     g.add_node("planner", PlannerAgent)
     g.add_node("executor", complex_executor_node)
+    g.add_node("web_augment", web_augment_node)
+
     g.add_edge(START, "planner")
     g.add_edge("planner", "executor")
-    g.add_edge("executor", END)
+    g.add_conditional_edges(
+        "executor",
+        _route_web,
+        {"web_augment": "web_augment", END: END},
+    )
+    g.add_edge("web_augment", END)
     return g.compile()

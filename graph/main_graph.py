@@ -6,18 +6,7 @@ from graph.medium_graph import create_medium_graph
 from graph.complex_graph import create_complex_graph
 
 
-# ─── Discussion Panel node ──────────────────────────────────────────────────────
-
-## LangGraph node that runs the 3-advocate discussion panel and writes complexity to GraphState
 async def discussion_panel_node(state: GraphState) -> dict:
-    """
-    args   : {
-        "state (GraphState)": "graph state containing 'original_question' (str)"
-    }
-    return : {
-        "dict": "updated state with 'complexity' (str) and 'token_usage' (dict)"
-    }
-    """
     discussion_graph = create_discussion_graph()
     discussion_input: DiscussionState = {
         "question": state.get("original_question", ""),
@@ -31,24 +20,10 @@ async def discussion_panel_node(state: GraphState) -> dict:
     print(f"\n{'='*50}")
     print(f"[DiscussionPanel] Routing to tier: '{complexity}'")
     print(f"{'='*50}\n")
-    return {
-        "complexity": complexity,
-        "token_usage": token_usage
-    }
+    return {"complexity": complexity, "token_usage": token_usage}
 
 
-# ─── Tier wrapper nodes ─────────────────────────────────────────────────────────
-
-## LangGraph node that delegates the query to the easy-tier subgraph
 async def easy_node(state: GraphState) -> dict:
-    """
-    args   : {
-        "state (GraphState)": "full graph state"
-    }
-    return : {
-        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
-    }
-    """
     easy_graph = create_easy_graph()
     result = await easy_graph.ainvoke(state)
     return {
@@ -57,17 +32,10 @@ async def easy_node(state: GraphState) -> dict:
     }
 
 
-## LangGraph node that delegates the query to the medium-tier single-pass RAG subgraph
 async def medium_node(state: GraphState) -> dict:
-    """
-    args   : {
-        "state (GraphState)": "full graph state containing 'original_question'"
-    }
-    return : {
-        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
-    }
-    """
     medium_graph = create_medium_graph()
+    # The medium subgraph uses RagState, so we project the relevant fields
+    # rather than passing GraphState directly.
     medium_input = {
         "question": state.get("original_question", ""),
         "documents": [],
@@ -85,16 +53,7 @@ async def medium_node(state: GraphState) -> dict:
     }
 
 
-## LangGraph node that delegates the query to the complex multi-step plan-executor subgraph
 async def complex_node(state: GraphState) -> dict:
-    """
-    args   : {
-        "state (GraphState)": "full graph state containing 'original_question' and 'plan'"
-    }
-    return : {
-        "dict": "updated state with 'final_answer' (str) and 'token_usage' (dict)"
-    }
-    """
     complex_graph = create_complex_graph()
     result = await complex_graph.ainvoke(state)
     return {
@@ -103,50 +62,30 @@ async def complex_node(state: GraphState) -> dict:
     }
 
 
-# ─── Router ─────────────────────────────────────────────────────────────────────
-
-## Conditional edge function that routes the graph to the correct tier based on complexity
 def route_by_complexity(state: GraphState) -> str:
-    """
-    args   : {
-        "state (GraphState)": "graph state with 'complexity' (str)"
-    }
-    return : {
-        "str": "tier name — 'easy', 'medium', or 'complex'"
-    }
-    """
     return state.get("complexity", "medium")
 
 
-# ─── Main graph ─────────────────────────────────────────────────────────────────
-
-## Build and compile the top-level orchestration graph
 def create_main_graph():
-    """
-    args   : {}
-    return : {
-        "CompiledStateGraph": "compiled LangGraph graph ready for invocation"
-    }
-    """
     graph = StateGraph(GraphState)
 
     graph.add_node("discussion_panel", discussion_panel_node)
-    graph.add_node("easy_tier",        easy_node)
-    graph.add_node("medium_tier",      medium_node)
-    graph.add_node("complex_tier",     complex_node)
+    graph.add_node("easy_tier", easy_node)
+    graph.add_node("medium_tier", medium_node)
+    graph.add_node("complex_tier", complex_node)
 
     graph.add_edge(START, "discussion_panel")
     graph.add_conditional_edges(
         "discussion_panel",
         route_by_complexity,
         {
-            "easy":    "easy_tier",
-            "medium":  "medium_tier",
+            "easy": "easy_tier",
+            "medium": "medium_tier",
             "complex": "complex_tier",
         },
     )
-    graph.add_edge("easy_tier",    END)
-    graph.add_edge("medium_tier",  END)
+    graph.add_edge("easy_tier", END)
+    graph.add_edge("medium_tier", END)
     graph.add_edge("complex_tier", END)
 
     return graph.compile()

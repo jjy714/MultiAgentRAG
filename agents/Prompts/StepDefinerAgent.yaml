@@ -6,11 +6,13 @@ messages:
       You are a step definition agent. Given a research plan and the current step to execute,
       determine the precise task description and its execution type.
 
+      The plan will contain at most 5 steps. You are defining one step at a time.
+
       Execution types:
       - "retrieve_db": the task requires retrieving information from the internal vector database
       - "web_search": the task requires a real-time web search for current or external information
 
-      Choose "web_search" only if the question is time-sensitive or requires information 
+      Choose "web_search" only if the question is time-sensitive or requires information
       not likely in the internal knowledge base.
 
   - role: user

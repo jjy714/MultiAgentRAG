@@ -5,8 +5,6 @@ from schema import ChatRequest, NODE_TO_AGENT
 
 
 async def run_graph(request: ChatRequest) -> AsyncGenerator[str, None]:
-
-    
     graph = create_main_graph()
     initial_state = {
         "original_question": request.message,
@@ -23,9 +21,11 @@ async def run_graph(request: ChatRequest) -> AsyncGenerator[str, None]:
         "plan_summary": None,
         "web_needed": False,
         "web_result": None,
+        "token_usage": {},
     }
 
     active_nodes: set[str] = set()
+    in_discussion = False
     final_answer = ""
 
     try:
@@ -34,30 +34,36 @@ async def run_graph(request: ChatRequest) -> AsyncGenerator[str, None]:
             node_name = event.get("name", "")
             agent_id = NODE_TO_AGENT.get(node_name, node_name)
 
-            # [이벤트 발생 시마다 자동 추적]
-            # trace(f"Event: {kind} | Node: {node_name}")
-
             if kind == "on_chain_start" and node_name in NODE_TO_AGENT:
                 if node_name not in active_nodes:
                     active_nodes.add(node_name)
                     yield sse({"type": "agent_start", "agent": agent_id})
+                if node_name == "discussion_panel":
+                    in_discussion = True
 
             elif kind == "on_chain_stream" and node_name == "discussion_panel":
                 chunk = event.get("data", {}).get("chunk", {})
-                # dict.get() 안전하게 사용
-                complexity = chunk.get("complexity", "") if isinstance(chunk, dict) else getattr(chunk, "complexity", "")
+                complexity = (
+                    chunk.get("complexity", "")
+                    if isinstance(chunk, dict)
+                    else getattr(chunk, "complexity", "")
+                )
                 if complexity:
                     yield sse({"type": "routing", "complexity": complexity})
 
-            elif kind == "on_chat_model_stream":
+            # Stream LLM tokens to the client only during execution (not discussion).
+            # The discussion panel votes are surfaced separately via vote events.
+            elif kind == "on_chat_model_stream" and not in_discussion:
                 data = event.get("data", {})
                 chunk = data.get("chunk")
-                
-                # 여기서 에러 방지 및 추적
+
                 if chunk:
-                    # 객체면 .content, 딕셔너리면 .get("content") 호출
-                    content = chunk.content if hasattr(chunk, "content") else chunk.get("content", "")
-                    
+                    content = (
+                        chunk.content
+                        if hasattr(chunk, "content")
+                        else chunk.get("content", "")
+                    )
+
                     if content:
                         tags = event.get("tags", [])
                         parent_agent = "AssistantAgent"
@@ -65,12 +71,34 @@ async def run_graph(request: ChatRequest) -> AsyncGenerator[str, None]:
                             if tag in NODE_TO_AGENT:
                                 parent_agent = NODE_TO_AGENT[tag]
                                 break
-                        yield sse({"type": "token", "agent": parent_agent, "content": content})
+                        yield sse(
+                            {"type": "token", "agent": parent_agent, "content": content}
+                        )
 
             elif kind == "on_chain_end" and node_name in NODE_TO_AGENT:
                 if node_name in active_nodes:
                     active_nodes.discard(node_name)
                     yield sse({"type": "agent_end", "agent": agent_id})
+                if node_name == "discussion_panel":
+                    in_discussion = False
+
+                if node_name in (
+                    "direct_responder_advocate",
+                    "contextual_analyst_advocate",
+                    "deep_researcher_advocate",
+                ):
+                    output = event.get("data", {}).get("output", {})
+                    votes = output.get("votes", []) if isinstance(output, dict) else []
+                    if votes:
+                        v = votes[0]
+                        yield sse(
+                            {
+                                "type": "vote",
+                                "agent": agent_id,
+                                "vote": v.get("vote", "medium"),
+                                "reasoning": v.get("reasoning", ""),
+                            }
+                        )
 
                 if node_name in ("easy_tier", "medium_tier", "complex_tier"):
                     output = event.get("data", {}).get("output", {})
@@ -80,6 +108,5 @@ async def run_graph(request: ChatRequest) -> AsyncGenerator[str, None]:
         yield sse({"type": "done", "final_answer": final_answer})
 
     except Exception as exc:
-        # 에러 발생 위치를 trace가 정확히 짚어줍니다.
         yield sse({"type": "error", "message": str(exc)})
         yield sse({"type": "done", "final_answer": ""})
