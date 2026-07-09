@@ -1,0 +1,1 @@
+vllm serve --config ./models/config.yaml

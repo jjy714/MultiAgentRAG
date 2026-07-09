@@ -1,0 +1,6 @@
+⚡ Loading Model on A100...
+📂 Scanning Dataset: data/capstone/kilt_dpr_100w_fixed.parquet
+📊 Total rows to process: 29,172,079
+⏩ Found 242 existing files. Resuming from part 242 (offset: 24,200,000)...
+
+🎉 Step 1 Complete! All vectors embedded and saved.
