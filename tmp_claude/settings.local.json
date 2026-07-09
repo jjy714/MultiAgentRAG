@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(source MultiAgentRAG/.venv/bin/activate)",
+      "Bash(PYTHONPATH=/home/jason/Projects/polyu/CapstoneProject/MultiAgentRAG python -c \":*)",
+      "Bash(source /home/jason/Projects/polyu/CapstoneProject/MultiAgentRAG/.venv/bin/activate)",
+      "Bash(python evaluate.py --help)",
+      "Bash(python -c \":*)",
+      "Bash(ollama --version)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''Ollama running, models:'''', [m[''''name''''] for m in d.get\\(''''models'''',[]\\)]\\)\")",
+      "Bash(ls results/*.json)",
+      "Bash(python analyze_results.py results/results_20260323_000007.json)"
+    ]
+  }
+}
