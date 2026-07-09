@@ -38,8 +38,6 @@ def StepDefinerAgent(state: PlanExecState) -> dict:
         }
 
     cur_step = plan[current_step]
-    # Build a compact memory string from completed steps so the LLM can frame
-    # the next task in the context of what has already been answered.
     memory_str = "\n".join(
         f"Q: {q.get('task', q) if isinstance(q, dict) else q}, A: {a.get('answer', a) if isinstance(a, dict) else a}"
         for q, a in zip(step_question, step_output)

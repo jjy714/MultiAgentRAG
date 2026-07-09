@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from agents.llm import get_llm
 from agents.token_utils import get_token_usage
 
-load_dotenv()
+load_dotenv('../.env.dev')
 
 EXA_SEARCH_API_KEY = os.getenv("EXA_SEARCH_API_KEY")
 EXA_API_URL = "https://api.exa.ai/search"

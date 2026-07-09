@@ -12,8 +12,8 @@ load_dotenv()
 QDRANT_PORT = os.getenv("QDRANT_PORT", "6333")
 QDRANT_COLLECTION_NAME = os.getenv("QDRANT_COLLECTION_NAME", "documents")
 SERVER_HOST = os.getenv("SERVER_HOST", "localhost")
-EMBEDDING_PORT = os.getenv("EMBEDDING_PORT", "8000")
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "/datadrive/data/Qwen3-Embedding-0.6B/")
+EMBEDDING_PORT = os.getenv("EMBEDDING_PORT", "8080")
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "Qwen/Qwen3-Embedding-0.6B")
 
 _SYSTEM_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_CACHE = _SYSTEM_ROOT / "question_embeddings.json"
@@ -149,6 +149,9 @@ def retriever_node(state: dict) -> dict:
     ]
 
     print(f"[retriever_node] Retrieved {len(page_contents)} documents.")
+    for i, doc in enumerate(page_contents):
+        preview = " ".join(doc.split()[:50])
+        print(f"[retriever_node] Doc {i+1}: {preview}")
     return {
         "question": query,
         "documents": page_contents,

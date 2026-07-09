@@ -1,0 +1,58 @@
+3  [error opening dir]
+qdrant_storage/
+├── aliases
+└── collections
+    └── kilt_dpr_100w
+        └── 0
+            ├── segments
+            │   ├── 25d1c302-c79d-44b7-b7c7-c738e2e6b6f6
+            │   │   ├── payload_index
+            │   │   ├── payload_storage
+            │   │   └── vector_storage
+            │   │       ├── deleted
+            │   │       └── vectors
+            │   ├── 4b393120-fe31-4f4c-a2a9-769b186154da
+            │   │   ├── payload_index
+            │   │   ├── payload_storage
+            │   │   └── vector_storage
+            │   │       ├── deleted
+            │   │       └── vectors
+            │   ├── 5a02f2f4-0285-4f2f-bd6b-46f23f498bbb
+            │   │   ├── payload_index
+            │   │   ├── payload_storage
+            │   │   └── vector_storage
+            │   │       ├── deleted
+            │   │       └── vectors
+            │   ├── 7c7f028b-c2a7-498e-bbd3-dd2193443a62
+            │   │   ├── payload_index
+            │   │   ├── payload_storage
+            │   │   └── vector_storage
+            │   │       ├── deleted
+            │   │       └── vectors
+            │   ├── 8800fdc5-3c54-4a18-8bbb-e0eb11a7a114
+            │   │   ├── payload_index
+            │   │   ├── payload_storage
+            │   │   └── vector_storage
+            │   │       ├── deleted
+            │   │       └── vectors
+            │   ├── d03f4ed9-b1f0-4791-aec8-317582d19bbd
+            │   │   ├── payload_index
+            │   │   ├── payload_storage
+            │   │   └── vector_storage
+            │   │       ├── deleted
+            │   │       └── vectors
+            │   ├── f8cb0481-de1b-4508-8bd5-947d9f129c06
+            │   │   ├── payload_index
+            │   │   ├── payload_storage
+            │   │   └── vector_storage
+            │   │       ├── deleted
+            │   │       └── vectors
+            │   └── f9cf9f59-94b5-46da-a9b7-955bd11b8d34
+            │       ├── payload_index
+            │       ├── payload_storage
+            │       └── vector_storage
+            │           ├── deleted
+            │           └── vectors
+            └── wal
+
+55 directories

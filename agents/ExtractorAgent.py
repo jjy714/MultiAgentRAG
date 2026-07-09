@@ -12,6 +12,9 @@ AGENT_PROMPT = "agents/Prompts/ExtractorAgent.yaml"
 def ExtractorAgent(state: dict) -> dict:
     passage = state.get("documents", [])
     question = state.get("question", "")
+    print(f"[ExtractorAgent] Reference documents ({len(passage)}):")
+    for i, doc in enumerate(passage):
+        print(f"  [{i+1}] {' '.join(doc.split()[:50])}")
     notes = state.get("notes", [])
 
     response = get_llm().invoke([
